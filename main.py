@@ -71,18 +71,12 @@ class Run:
                             if smallestTime == None or smallestTime > stakeTime:
                                 bestStake = stake
                                 smallestTime = stakeTime
+
                     elif self.simulationType == 2:
                         """
-                        Precalculate the winner
+                        Precalculating based on who the next winner will be
                         """
-                        nextWinner = self.preCalculateNextWinner(Block(winnerStakes[0].address, timeStamp))
-                        if len(nextWinner) > 1:
-                            bestStake = winnerStakes[0]
-                        elif nextWinner[0] in self.myStake:
-                            bestStake = winnerStakes[0]
-                            self.testNumber += 1
-                        else:
-                            bestStake = winnerStakes[1]
+                        bestStake = self.getNextWinnerByPreCalc(winnerStakes, timeStamp)
 
 
                 else:
@@ -111,6 +105,18 @@ class Run:
             rounds += 1
             if int(self.getHash(block, stake.address, block.timestamp + 16 * rounds), 16) < self.target * stake.stake:
                 return rounds
+
+    def getNextWinnerByPreCalc(self, stakes, timeStamp):
+        winnersList = [self.preCalculateNextWinner(Block(stake.address, timeStamp)) for stake in stakes] #Winners is a list of lists of stakes with len(Winners) >= 2
+        for index in range(len(winnersList)):
+            if all(winner in self.myStake for winner in winnersList[index]):
+                return stakes[index]
+            else:
+                length = len(winnersList)
+                winnersList[index] = sum(winner in self.myStake for winner in winnersList[index])/length
+        return stakes[winnersList.index(max(winnersList))] # Returns the list of winners with the highest amount of next winners
+
+
 
     def preCalculateNextWinner(self, block):
         lastTime = block.timestamp
