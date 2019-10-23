@@ -11,5 +11,6 @@ class Block:
         """
         self.utxo = utxo
         self.timestamp = timestamp
+        self.flag = False
 
 
