@@ -5,9 +5,9 @@ from block import Block
 from stake import Stake
 
 """
-A simulation of a proof of stake blockchain network using the timestamp and utxo (address of previous winning stake) as kernel.
-The simulation aims to show the improvement of cooperation between stakeowners in a low trust required relationsship
-and the increased minted blocks a cooperation will yield.
+A simulation of a proof of stake blockchain network using the timestamp and utxo (address of previous winning stake) as
+kernel. The simulation aims to show the improvement of cooperation between stake owners in a low trust required
+relationsship and the increased minted blocks a cooperation will yield.
 """
 
 
@@ -74,9 +74,16 @@ class Run:
 
                     elif self.simulationType == 2:
                         """
-                        Precalculating based on who the next winner will be
+                        Precalculating based on who the next winner will be. Note that this method, in reality, requires
+                        knowledge of most of the other stakes
                         """
                         bestStake = self.getNextWinnerByPreCalc(winnerStakes, timeStamp)
+
+                    elif self.simulationType == 3:
+                        """
+                        This method will precalculate a set amount of times into future blocks or until it faces a block
+                        that will have multiple winners
+                        """
 
 
                 else:
@@ -107,16 +114,16 @@ class Run:
                 return rounds
 
     def getNextWinnerByPreCalc(self, stakes, timeStamp):
-        winnersList = [self.preCalculateNextWinner(Block(stake.address, timeStamp)) for stake in stakes] #Winners is a list of lists of stakes with len(Winners) >= 2
+        winnersList = [self.preCalculateNextWinner(Block(stake.address, timeStamp)) for stake in
+                       stakes]  # Winners is a list of lists of stakes with len(Winners) >= 2
         for index in range(len(winnersList)):
             if all(winner in self.myStake for winner in winnersList[index]):
                 return stakes[index]
             else:
                 length = len(winnersList)
-                winnersList[index] = sum(winner in self.myStake for winner in winnersList[index])/length
-        return stakes[winnersList.index(max(winnersList))] # Returns the list of winners with the highest amount of next winners
-
-
+                winnersList[index] = sum(winner in self.myStake for winner in winnersList[index]) / length
+        return stakes[
+            winnersList.index(max(winnersList))]  # Returns the list of winners with the highest amount of next winners
 
     def preCalculateNextWinner(self, block):
         lastTime = block.timestamp
