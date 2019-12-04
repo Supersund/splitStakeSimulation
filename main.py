@@ -21,7 +21,7 @@ class Run:
             Block(-1, time.time()))  # Add a genesis block, the address -1 is arbitrary and does not matter
         self.winnings = 0  # Counter for times that the block is being minted by a stake in myStake
         self.multipleOwnWinners = 0  # Counter for times there are multiple winners and all of them are in myStake
-        self.otherSplits = 2  # Definition of the amount splits that the other stakes have
+        self.otherSplits = 100  # Definition of the amount splits that the other stakes have
         self.testNumber = 0
 
     def main(self):
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     print((run.blocks[-1].timestamp - run.blocks[0].timestamp) / 16)
     wonAfterMultWin = 0
     for block_index in range(len(run.blocks) - 1):
-        if run.blocks[block_index].flag == True and run.blocks[block_index + 1].utxo in (0, 1):
+        if run.blocks[block_index].flag == True and run.blocks[block_index + 1].utxo in (range(0, len(run.myStake))):
             wonAfterMultWin += 1
     print(wonAfterMultWin)
     print(float(wonAfterMultWin) / run.multipleOwnWinners)
