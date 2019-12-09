@@ -180,30 +180,26 @@ class Run:
 
 
 def EvaluatePairs(runObject):
-
     def alsoWinner(stake, block, timestamp):
-        return int(runObject.getHash(block, stake.address, timestamp),16)< runObject.target*stake.stake
-    stakes = runObject.myStakes+runObject.otherStakes
+        return int(runObject.getHash(block, stake.address, timestamp), 16) < runObject.target * stake.stake
+
+    stakes = runObject.myStakes + runObject.otherStakes
     pairs = {}
-    for i in range(len(stakes)-1):
-        for j in range(i+1, len(stakes)):
-            pairs[(i,j)] = [0,0]
-    for index in range(1, len(runObject.blocks)-1):
+    for i in range(len(stakes) - 1):
+        for j in range(i + 1, len(stakes)):
+            pairs[(i, j)] = [0, 0]
+    for index in range(1, len(runObject.blocks) - 1):
         currWinner = runObject.blocks[index].utxo
         for i in range(len(stakes)):
             if i != currWinner:
-                if alsoWinner(stakes[i], runObject.blocks[index-1], runObject.blocks[index].timestamp):
+                if alsoWinner(stakes[i], runObject.blocks[index - 1], runObject.blocks[index].timestamp):
                     if currWinner < i:
-                        pairs[currWinner,i][0] += 1
-                        pairs[currWinner,i][1] += runObject.blocks[index+1].utxo in (currWinner, i)
+                        pairs[currWinner, i][0] += 1
+                        pairs[currWinner, i][1] += runObject.blocks[index + 1].utxo in (currWinner, i)
                     elif currWinner > i:
                         pairs[i, currWinner][0] += 1
                         pairs[i, currWinner][1] += runObject.blocks[index + 1].utxo in (currWinner, i)
-                    else:
-                        print("Somethng went wrong!")
     return pairs
-
-
 
 
 if __name__ == "__main__":
@@ -220,4 +216,4 @@ if __name__ == "__main__":
     print(float(wonAfterMultWin) / run.multipleOwnWinners)
     pairs = EvaluatePairs(run)
     for i in pairs:
-        print(str(i) + "With values" + str(pairs[i][1]/pairs[i][0]))
+        print(str(i) + "With values" + str(pairs[i][1] / pairs[i][0]))
