@@ -13,7 +13,7 @@ relationsship and the increased minted blocks a cooperation will yield.
 
 class Run:
     def __init__(self):
-        self.myStake = []  # List of stakes that are "owned"
+        self.myStakes = []  # List of stakes that are "owned"
         self.otherStakes = []  # List of stakes that are controlled by others
         self.blocks = []  # List of blocks that have been minted
         self.target = 2 ** 256 / 4  # The target minting is trying to reach. The
@@ -21,7 +21,7 @@ class Run:
             Block(-1, time.time()))  # Add a genesis block, the address -1 is arbitrary and does not matter
         self.winnings = 0  # Counter for times that the block is being minted by a stake in myStake
         self.multipleOwnWinners = 0  # Counter for times there are multiple winners and all of them are in myStake
-        self.otherSplits = 100  # Definition of the amount splits that the other stakes have
+        self.otherSplits = 4  # Definition of the amount splits that the other stakes have
         self.testNumber = 0
 
     def main(self):
@@ -35,7 +35,7 @@ class Run:
         stakeInPercent = float(input("Give the stake in percent of total stake: ")) / 100
         amountOfCoins = int(input("Give the amount of splits for the stake: "))
         blockToBeStaked = int(input("Give amount of blocks to be minted: "))
-        self.myStake = [Stake(stakeInPercent / amountOfCoins) for i in range(amountOfCoins)]
+        self.myStakes = [Stake(stakeInPercent / amountOfCoins) for i in range(amountOfCoins)]
         self.otherStakes = [Stake((1 - stakeInPercent) / self.otherSplits) for i in
                             range(self.otherSplits)]  # Note that all the other stakes will have an equal stake amount
         self.mintCoins(blockToBeStaked)
@@ -49,7 +49,7 @@ class Run:
         for i in range(amountOfBlocks):
             flag = False  # Just for testing
             winnerStakes, timeStamp = self.getNextWinner()
-            if all(stake in self.myStake for stake in
+            if all(stake in self.myStakes for stake in
                    winnerStakes):  # Checks if all the winners of the current block are part of myStake. Often there is only one winner
                 self.winnings += 1
 
@@ -66,7 +66,7 @@ class Run:
                         for stake in winnerStakes:
                             stakeTime = min(
                                 [self.getNextWinTime(myNextStake, Block(stake.address, timeStamp)) for myNextStake in
-                                 self.myStake])
+                                 self.myStakes])
 
                             if smallestTime == None or smallestTime > stakeTime:
                                 bestStake = stake
@@ -97,7 +97,7 @@ class Run:
             else:
                 bestStake = random.choice(winnerStakes)
                 self.blocks.append(Block(bestStake.address, timeStamp))
-                if bestStake in self.myStake:
+                if bestStake in self.myStakes:
                     self.winnings += 1
 
     def getNextWinTime(self, stake, block):
@@ -117,11 +117,11 @@ class Run:
         winnersList = [self.preCalculateNextWinner(Block(stake.address, timeStamp)) for stake in
                        stakes]  # Winners is a list of lists of stakes with len(Winners) >= 2
         for index in range(len(winnersList)):
-            if all(winner in self.myStake for winner in winnersList[index]):
+            if all(winner in self.myStakes for winner in winnersList[index]):
                 return stakes[index]
             else:
                 length = len(winnersList)
-                winnersList[index] = sum(winner in self.myStake for winner in winnersList[index]) / length
+                winnersList[index] = sum(winner in self.myStakes for winner in winnersList[index]) / length
         return stakes[
             winnersList.index(max(winnersList))]  # Returns the list of winners with the highest amount of next winners
 
@@ -132,7 +132,7 @@ class Run:
         rounds = 0
         while not winnerFound:
             rounds += 1
-            for stake in self.myStake:
+            for stake in self.myStakes:
                 if int(self.getHash(block, stake.address, lastTime + 16 * rounds),
                        16) < self.target * stake.stake:
                     winners.append(stake)
@@ -155,7 +155,7 @@ class Run:
         rounds = 0
         while not winnerFound:
             rounds += 1
-            for stake in self.myStake:
+            for stake in self.myStakes:
                 if int(self.getHash(self.blocks[-1], stake.address, lastTime + 16 * rounds),
                        16) < self.target * stake.stake:
                     winners.append(stake)
@@ -179,6 +179,33 @@ class Run:
             (str(block.timestamp) + str(block.utxo) + str(address) + str(timestamp)).encode('utf-8')).hexdigest()
 
 
+def EvaluatePairs(runObject):
+
+    def alsoWinner(stake, block, timestamp):
+        return int(runObject.getHash(block, stake.address, timestamp),16)< runObject.target*stake.stake
+    stakes = runObject.myStakes+runObject.otherStakes
+    pairs = {}
+    for i in range(len(stakes)-1):
+        for j in range(i+1, len(stakes)):
+            pairs[(i,j)] = [0,0]
+    for index in range(1, len(runObject.blocks)-1):
+        currWinner = runObject.blocks[index].utxo
+        for i in range(len(stakes)):
+            if i != currWinner:
+                if alsoWinner(stakes[i], runObject.blocks[index-1], runObject.blocks[index].timestamp):
+                    if currWinner < i:
+                        pairs[currWinner,i][0] += 1
+                        pairs[currWinner,i][1] += runObject.blocks[index+1].utxo in (currWinner, i)
+                    elif currWinner > i:
+                        pairs[i, currWinner][0] += 1
+                        pairs[i, currWinner][1] += runObject.blocks[index + 1].utxo in (currWinner, i)
+                    else:
+                        print("Somethng went wrong!")
+    return pairs
+
+
+
+
 if __name__ == "__main__":
     run = Run()
     run.main()
@@ -187,7 +214,10 @@ if __name__ == "__main__":
     print((run.blocks[-1].timestamp - run.blocks[0].timestamp) / 16)
     wonAfterMultWin = 0
     for block_index in range(len(run.blocks) - 1):
-        if run.blocks[block_index].flag == True and run.blocks[block_index + 1].utxo in (range(0, len(run.myStake))):
+        if run.blocks[block_index].flag == True and run.blocks[block_index + 1].utxo in (range(0, len(run.myStakes))):
             wonAfterMultWin += 1
     print(wonAfterMultWin)
     print(float(wonAfterMultWin) / run.multipleOwnWinners)
+    pairs = EvaluatePairs(run)
+    for i in pairs:
+        print(str(i) + "With values" + str(pairs[i][1]/pairs[i][0]))
