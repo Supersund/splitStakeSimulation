@@ -13,8 +13,8 @@ relationsship and the increased minted blocks a cooperation will yield.
 
 class Run:
     def __init__(self):
-        self.myStakes = []  # List of stakes that are "owned"
-        self.otherStakes = []  # List of stakes that are controlled by others
+        self.attackerStakes = []  # List of stakes that are "owned"
+        self.honestStakes = []  # List of stakes that are controlled by others
         self.blocks = []  # List of blocks that have been minted
         self.target = 2 ** 256 / 4  # The target minting is trying to reach. The
         self.blocks.append(
@@ -35,9 +35,9 @@ class Run:
         stakeInPercent = float(input("Give the stake in percent of total stake: ")) / 100
         amountOfCoins = int(input("Give the amount of splits for the stake: "))
         blockToBeStaked = int(input("Give amount of blocks to be minted: "))
-        self.myStakes = [Stake(stakeInPercent / amountOfCoins) for i in range(amountOfCoins)]
-        self.otherStakes = [Stake((1 - stakeInPercent) / self.otherSplits) for i in
-                            range(self.otherSplits)]  # Note that all the other stakes will have an equal stake amount
+        self.attackerStakes = [Stake(stakeInPercent / amountOfCoins) for i in range(amountOfCoins)]
+        self.honestStakes = [Stake((1 - stakeInPercent) / self.otherSplits) for i in
+                             range(self.otherSplits)]  # Note that all the other stakes will have an equal stake amount
         self.mintCoins(blockToBeStaked)
 
     def mintCoins(self, amountOfBlocks):
@@ -48,8 +48,8 @@ class Run:
         """
         for i in range(amountOfBlocks):
             flag = False  # Just for testing
-            winnerStakes, timeStamp = self.getNextWinner()
-            if all(stake in self.myStakes for stake in
+            winnerStakes, timeStamp = self.getNextWinners()
+            if all(stake in self.attackerStakes for stake in
                    winnerStakes):  # Checks if all the winners of the current block are part of myStake. Often there is only one winner
                 self.winnings += 1
 
@@ -66,7 +66,7 @@ class Run:
                         for stake in winnerStakes:
                             stakeTime = min(
                                 [self.getNextWinTime(myNextStake, Block(stake.address, timeStamp)) for myNextStake in
-                                 self.myStakes])
+                                 self.attackerStakes])
 
                             if smallestTime == None or smallestTime > stakeTime:
                                 bestStake = stake
@@ -81,11 +81,9 @@ class Run:
 
                     elif self.simulationType == 3:
                         """
-                        This method will precalculate a set amount of times into future blocks or until it faces a block
-                        that will have multiple winners
+                        Choose a random next winner
                         """
-
-
+                        bestStake = random.choice(winnerStakes)
                 else:
                     bestStake = winnerStakes[0]
 
@@ -97,7 +95,7 @@ class Run:
             else:
                 bestStake = random.choice(winnerStakes)
                 self.blocks.append(Block(bestStake.address, timeStamp))
-                if bestStake in self.myStakes:
+                if bestStake in self.attackerStakes:
                     self.winnings += 1
 
     def getNextWinTime(self, stake, block):
@@ -107,21 +105,22 @@ class Run:
         :param block: Block
         :return: int
         """
-        rounds = 0
+        timeSteps = 0
         while True:
-            rounds += 1
-            if int(self.getHash(block, stake.address, block.timestamp + 16 * rounds), 16) < self.target * stake.stake:
-                return rounds
+            timeSteps += 1
+            if int(self.getHash(block, stake.address, block.timestamp + 16 * timeSteps),
+                   16) < self.target * stake.stake:
+                return timeSteps
 
     def getNextWinnerByPreCalc(self, stakes, timeStamp):
         winnersList = [self.preCalculateNextWinner(Block(stake.address, timeStamp)) for stake in
                        stakes]  # Winners is a list of lists of stakes with len(Winners) >= 2
         for index in range(len(winnersList)):
-            if all(winner in self.myStakes for winner in winnersList[index]):
+            if all(winner in self.attackerStakes for winner in winnersList[index]):
                 return stakes[index]
             else:
                 length = len(winnersList)
-                winnersList[index] = sum(winner in self.myStakes for winner in winnersList[index]) / length
+                winnersList[index] = sum(winner in self.attackerStakes for winner in winnersList[index]) / length
         return stakes[
             winnersList.index(max(winnersList))]  # Returns the list of winners with the highest amount of next winners
 
@@ -129,43 +128,43 @@ class Run:
         lastTime = block.timestamp
         winnerFound = False
         winners = []
-        rounds = 0
+        timeSteps = 0
         while not winnerFound:
-            rounds += 1
-            for stake in self.myStakes:
-                if int(self.getHash(block, stake.address, lastTime + 16 * rounds),
+            timeSteps += 1
+            for stake in self.attackerStakes:
+                if int(self.getHash(block, stake.address, lastTime + 16 * timeSteps),
                        16) < self.target * stake.stake:
                     winners.append(stake)
                     winnerFound = True
-            for stake in self.otherStakes:
-                if int(self.getHash(block, stake.address, lastTime + 16 * rounds),
+            for stake in self.honestStakes:
+                if int(self.getHash(block, stake.address, lastTime + 16 * timeSteps),
                        16) < self.target * stake.stake:
                     winners.append(stake)
                     winnerFound = True
         return winners
 
-    def getNextWinner(self):
+    def getNextWinners(self):
         """
-        Function that returns the next winners
+        Function that returns the next winners and the timestamp for which the minting occurs
         :return: [Stake], float
         """
         lastTime = self.blocks[-1].timestamp
         winnerFound = False
         winners = []
-        rounds = 0
+        timeSteps = 0
         while not winnerFound:
-            rounds += 1
-            for stake in self.myStakes:
-                if int(self.getHash(self.blocks[-1], stake.address, lastTime + 16 * rounds),
+            timeSteps += 1
+            for stake in self.attackerStakes:
+                if int(self.getHash(self.blocks[-1], stake.address, lastTime + 16 * timeSteps),
                        16) < self.target * stake.stake:
                     winners.append(stake)
                     winnerFound = True
-            for stake in self.otherStakes:
-                if int(self.getHash(self.blocks[-1], stake.address, lastTime + 16 * rounds),
+            for stake in self.honestStakes:
+                if int(self.getHash(self.blocks[-1], stake.address, lastTime + 16 * timeSteps),
                        16) < self.target * stake.stake:
                     winners.append(stake)
                     winnerFound = True
-        return winners, lastTime + 16 * rounds
+        return winners, lastTime + 16 * timeSteps
 
     def getHash(self, block, address, timestamp):
         """
@@ -183,7 +182,7 @@ def EvaluatePairs(runObject):
     def alsoWinner(stake, block, timestamp):
         return int(runObject.getHash(block, stake.address, timestamp), 16) < runObject.target * stake.stake
 
-    stakes = runObject.myStakes + runObject.otherStakes
+    stakes = runObject.attackerStakes + runObject.honestStakes
     pairs = {}
     for i in range(len(stakes) - 1):
         for j in range(i + 1, len(stakes)):
@@ -210,7 +209,8 @@ if __name__ == "__main__":
     print((run.blocks[-1].timestamp - run.blocks[0].timestamp) / 16)
     wonAfterMultWin = 0
     for block_index in range(len(run.blocks) - 1):
-        if run.blocks[block_index].flag == True and run.blocks[block_index + 1].utxo in (range(0, len(run.myStakes))):
+        if run.blocks[block_index].flag == True and run.blocks[block_index + 1].utxo in (
+        range(0, len(run.attackerStakes))):
             wonAfterMultWin += 1
     print(wonAfterMultWin)
     print(float(wonAfterMultWin) / run.multipleOwnWinners)
